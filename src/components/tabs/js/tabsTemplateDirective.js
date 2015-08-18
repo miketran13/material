@@ -1,21 +1,21 @@
 angular
     .module('material.components.tabs')
-    .directive('mdTemplate', MdTemplate);
+    .directive('mdTabsTemplate', MdTabsTemplate);
 
-function MdTemplate ($compile, $mdUtil) {
+function MdTabsTemplate ($compile, $mdUtil) {
   return {
     restrict: 'A',
-    link: link,
-    scope: {
-      template: '=mdTemplate',
-      compileScope: '=mdScope',
-      connected: '=?mdConnectedIf'
+    link:     link,
+    scope:    {
+      template:     '=mdTabsTemplate',
+      connected:    '=?mdConnectedIf',
+      compileScope: '=mdScope'
     },
-    require: '^?mdTabs'
+    require:  '^?mdTabs'
   };
   function link (scope, element, attr, ctrl) {
     if (!ctrl) return;
-    var compileScope = scope.compileScope.$new();
+    var compileScope = ctrl.enableDisconnect ? scope.compileScope.$new() : scope.compileScope;
     element.html(scope.template);
     $compile(element.contents())(compileScope);
     element.on('DOMSubtreeModified', function () {
@@ -23,17 +23,18 @@ function MdTemplate ($compile, $mdUtil) {
       ctrl.updateInkBarStyles();
     });
     return $mdUtil.nextTick(handleScope);
+
     function handleScope () {
       scope.$watch('connected', function (value) { value === false ? disconnect() : reconnect(); });
       scope.$on('$destroy', reconnect);
     }
+
     function disconnect () {
-      if (ctrl.scope.noDisconnect) return;
-      $mdUtil.disconnectScope(compileScope);
+      if (ctrl.enableDisconnect) $mdUtil.disconnectScope(compileScope);
     }
+
     function reconnect () {
-      if (ctrl.scope.noDisconnect) return;
-      $mdUtil.reconnectScope(compileScope);
+      if (ctrl.enableDisconnect) $mdUtil.reconnectScope(compileScope);
     }
   }
 }

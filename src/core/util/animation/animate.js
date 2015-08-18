@@ -1,49 +1,47 @@
+// Polyfill angular < 1.4 (provide $animateCss)
 angular
   .module('material.core')
-  .factory('$$mdAnimate', function($$rAF, $q, $timeout, $mdConstant){
+  .factory('$$mdAnimate', function($q, $timeout, $mdConstant, $animateCss){
 
      // Since $$mdAnimate is injected into $mdUtil... use a wrapper function
      // to subsequently inject $mdUtil as an argument to the AnimateDomUtils
 
      return function($mdUtil) {
-       return AnimateDomUtils( $mdUtil, $$rAF, $q, $timeout, $mdConstant);
+       return AnimateDomUtils( $mdUtil, $q, $timeout, $mdConstant, $animateCss);
      };
    });
 
 /**
  * Factory function that requires special injections
  */
-function AnimateDomUtils($mdUtil, $$rAF, $q, $timeout, $mdConstant) {
+function AnimateDomUtils($mdUtil, $q, $timeout, $mdConstant, $animateCss) {
   var self;
   return self = {
     /**
      *
      */
     translate3d : function( target, from, to, options ) {
-      // Set translate3d style to start at the `from` origin
-      target.css(from);
-
-      // Wait while CSS takes affect
-      // Set the `to` styles and run the transition-in styles
-      $$rAF(function () {
-        target.css(to).addClass(options.transitionInClass);
+      return $animateCss(target,{
+        from:from,
+        to:to,
+        addClass:options.transitionInClass
+      })
+      .start()
+      .then(function(){
+          // Resolve with reverser function...
+          return reverseTranslate;
       });
-
-      return self
-        .waitTransitionEnd(target)
-        .then(function(){
-            // Resolve with reverser function...
-            return reverseTranslate;
-        });
 
       /**
        * Specific reversal of the request translate animation above...
        */
       function reverseTranslate (newFrom) {
-        target.removeClass(options.transitionInClass)
-              .addClass(options.transitionOutClass)
-              .css( newFrom || from );
-        return self.waitTransitionEnd(target);
+        return $animateCss(target, {
+           to: newFrom || from,
+           addClass: options.transitionOutClass,
+           removeClass: options.transitionInClass
+        }).start();
+
       }
   },
 
@@ -52,7 +50,7 @@ function AnimateDomUtils($mdUtil, $$rAF, $q, $timeout, $mdConstant) {
      * Announce completion or failure via promise handlers
      */
     waitTransitionEnd: function (element, opts) {
-        var TIMEOUT = 10000; // fallback is 10 secs
+        var TIMEOUT = 3000; // fallback is 3 secs
 
         return $q(function(resolve, reject){
           opts = opts || { };
@@ -67,11 +65,12 @@ function AnimateDomUtils($mdUtil, $$rAF, $q, $timeout, $mdConstant) {
           function finished(ev) {
             if ( ev && ev.target !== element[0]) return;
 
-            element.off($mdConstant.CSS.TRANSITIONEND, finished);
             if ( ev  ) $timeout.cancel(timer);
+            element.off($mdConstant.CSS.TRANSITIONEND, finished);
 
-            // Only reject if timeout triggered
-            (ev ? resolve : reject)();
+            // Never reject since ngAnimate may cause timeouts due missed transitionEnd events
+            resolve();
+
           }
 
         });
@@ -103,8 +102,8 @@ function AnimateDomUtils($mdUtil, $$rAF, $q, $timeout, $mdConstant) {
         zoomStyle = buildZoom({
           centerX: originCenterPt.x - dialogCenterPt.x,
           centerY: originCenterPt.y - dialogCenterPt.y,
-          scaleX: Math.min(0.5, originBnds.width / dialogRect.width),
-          scaleY: Math.min(0.5, originBnds.height / dialogRect.height)
+          scaleX: Math.round(100 * Math.min(0.5, originBnds.width / dialogRect.width))/100,
+          scaleY: Math.round(100 * Math.min(0.5, originBnds.height / dialogRect.height))/100
         });
       }
 
@@ -112,15 +111,51 @@ function AnimateDomUtils($mdUtil, $$rAF, $q, $timeout, $mdConstant) {
     },
 
     /**
+     * Enhance raw values to represent valid css stylings...
+     */
+    toCss : function( raw ) {
+      var css = { };
+      var lookups = 'left top right bottom width height x y min-width min-height max-width max-height';
+
+      angular.forEach(raw, function(value,key) {
+        if ( angular.isUndefined(value) ) return;
+
+        if ( lookups.indexOf(key) >= 0 ) {
+          css[key] = value + 'px';
+        } else {
+          switch (key) {
+            case 'transform':
+              convertToVendor(key, $mdConstant.CSS.TRANSFORM, value);
+              break;
+            case 'transformOrigin':
+              convertToVendor(key, $mdConstant.CSS.TRANSFORM_ORIGIN, value);
+              break;
+          }
+        }
+      });
+
+      return css;
+
+      function convertToVendor(key, vendor, value) {
+        angular.forEach(vendor.split(' '), function (key) {
+          css[key] = value;
+        });
+      }
+    },
+
+    /**
      * Convert the translate CSS value to key/value pair(s).
      */
-    toTransformCss: function (transform, addTransition) {
+    toTransformCss: function (transform, addTransition, transition) {
       var css = {};
       angular.forEach($mdConstant.CSS.TRANSFORM.split(' '), function (key) {
         css[key] = transform;
       });
 
-      if (addTransition) css['transition'] = "all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important";
+      if (addTransition) {
+        transition = transition || "all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important";
+        css['transition'] = transition;
+      }
 
       return css;
     },

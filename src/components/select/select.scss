@@ -9,7 +9,7 @@ $select-max-visible-options: 5;
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 99;
+  z-index: $z-index-select;
   opacity: 0;
 
   // Don't let the user select a new choice while it's animating
@@ -28,11 +28,11 @@ $select-max-visible-options: 5;
     opacity: 1;
     md-select-menu {
       transition: $swift-ease-out;
-      transition-duration: 200ms;
+      transition-duration: 150ms;
       > * {
         opacity: 1;
         transition: $swift-ease-in;
-        transition-duration: 200ms;
+        transition-duration: 150ms;
         transition-delay: 100ms;
       }
     }
@@ -87,6 +87,7 @@ md-select {
   padding: 2px 2px 1px;
   border-bottom-width: 1px;
   border-bottom-style: solid;
+  background-color: rgba(0,0,0,0);
   position: relative;
   box-sizing: content-box;
   min-width: 8 * $baseline-grid;
@@ -103,6 +104,7 @@ md-select {
   }
 
   .md-select-icon {
+    display: block;
     align-items: flex-end;
     text-align: end;
     width: 3 * $baseline-grid;
@@ -175,6 +177,7 @@ md-option {
   }
 
   .md-text {
+    @include not-selectable();
     width: auto;
     white-space: nowrap;
     overflow: hidden;

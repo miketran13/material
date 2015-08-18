@@ -66,15 +66,11 @@ All Angular Material components have specific CSS rules constructed using the th
 .md-button {
   color : currentColor;
 }
-</hljs>
 
-<hljs lang="css">
 .md-button:not([disabled]):hover {
   background-color: rgba(158, 158, 158, 0.2);
 }
-</hljs>
 
-<hljs lang="css">
 .md-button[disabled] {
   color : rgba(0, 0, 0, 0.26);
   background-color: transparent;
@@ -98,16 +94,12 @@ All Angular Material components have specific CSS rules constructed using the th
   border-radius: 10px 0 0 10px;
   font-size: 16px;
 }
-</hljs>
 
-<hljs lang="css">
 .btn1:not([disabled]):hover { 
   background-color: rgba(107, 103, 91, 0.96);
   color: white;
 }
-</hljs>
 
-<hljs lang="css">
 .btn1[disabled] { 
   color : rgb(187, 187, 187);
   background-color: rgba(230, 230, 229, 0.96);
@@ -175,7 +167,7 @@ Add the `.md-fab` class in order to create a floating action button (aka FAB):
 
 ![minibutton](https://cloud.githubusercontent.com/assets/1292882/7273617/1fcca280-e8fe-11e4-9588-231a9e860be1.PNG)
 
-Add add the `.md-mini` class in order to create small, mini-FAB buttons: 
+Add the `.md-mini` class in order to create small, mini-FAB buttons: 
 
 <hljs lang="html">
 <md-button class="md-fab md-mini" aria-label="Eat cake">
@@ -196,7 +188,7 @@ Add add the `.md-mini` class in order to create small, mini-FAB buttons:
 
 ![iconbutton](https://cloud.githubusercontent.com/assets/1292882/7273908/d701bd8a-e900-11e4-84c7-44c580c7372d.PNG)
 
-Create icon buttons by adding the `<md-icon ...>` class:
+Create icon buttons by adding the `.md-icon-button` class and the `<md-icon ...>` component:
 
 <hljs lang="html">
 <md-button class="md-icon-button md-primary" aria-label="Settings">

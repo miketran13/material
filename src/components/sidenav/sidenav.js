@@ -118,7 +118,7 @@ function SidenavService($mdComponentRegistry, $q) {
  * @restrict A
  *
  * @description
- * `$mdSidenavFocus` provides a way to specify the focused element when a sidenav opens.
+ * `mdSidenavFocus` provides a way to specify the focused element when a sidenav opens.
  * This is completely optional, as the sidenav itself is focused by default.
  *
  * @usage
@@ -138,7 +138,7 @@ function SidenavFocusDirective() {
     restrict: 'A',
     require: '^mdSidenav',
     link: function(scope, element, attr, sidenavCtrl) {
-      sidenavCtrl.focusElement(element);
+      // @see $mdUtil.findFocusTarget(...)
     }
   };
 }
@@ -208,7 +208,7 @@ function SidenavFocusDirective() {
  *   - `<md-sidenav md-is-locked-open="$mdMedia('min-width: 1000px')"></md-sidenav>`
  *   - `<md-sidenav md-is-locked-open="$mdMedia('sm')"></md-sidenav>` (locks open on small screens)
  */
-function SidenavDirective($mdMedia, $mdUtil, $mdConstant, $mdTheming, $animate, $parse, $log, $compile, $q, $document) {
+function SidenavDirective($mdMedia, $mdUtil, $mdConstant, $mdTheming, $animate, $compile, $parse, $log, $q, $document) {
   return {
     restrict: 'E',
     scope: {
@@ -240,9 +240,7 @@ function SidenavDirective($mdMedia, $mdUtil, $mdConstant, $mdTheming, $animate, 
         $mdMedia: $mdMedia
       });
     };
-    var backdrop = $compile(
-      '<md-backdrop class="md-sidenav-backdrop md-opaque ng-enter">'
-    )(scope);
+    var backdrop = $mdUtil.createBackdrop(scope, "md-sidenav-backdrop md-opaque ng-enter");
 
     element.on('$destroy', sidenavCtrl.destroy);
     $mdTheming.inherit(backdrop, element);
@@ -253,7 +251,6 @@ function SidenavDirective($mdMedia, $mdUtil, $mdConstant, $mdTheming, $animate, 
 
     // Publish special accessor for the Controller instance
     sidenavCtrl.$toggleOpen = toggleOpen;
-    sidenavCtrl.focusElement( sidenavCtrl.focusElement() || element );
 
     /**
      * Toggle the DOM classes to indicate `locked`
@@ -274,8 +271,9 @@ function SidenavDirective($mdMedia, $mdUtil, $mdConstant, $mdTheming, $animate, 
      * @param isOpen
      */
     function updateIsOpen(isOpen) {
+      // Support deprecated md-sidenav-focus attribute as fallback
+      var focusEl = $mdUtil.findFocusTarget(element) || $mdUtil.findFocusTarget(element,'[md-sidenav-focus]') || element;
       var parent = element.parent();
-      var focusEl = sidenavCtrl.focusElement();
 
       parent[isOpen ? 'on' : 'off']('keydown', onKeyDown);
       backdrop[isOpen ? 'on' : 'off']('click', close);
@@ -330,28 +328,26 @@ function SidenavDirective($mdMedia, $mdUtil, $mdConstant, $mdTheming, $animate, 
         return $q.when(true);
 
       } else {
-        var deferred = $q.defer();
+        return $q(function(resolve){
+          // Toggle value to force an async `updateIsOpen()` to run
+          scope.isOpen = isOpen;
 
-        // Toggle value to force an async `updateIsOpen()` to run
-        scope.isOpen = isOpen;
+          $mdUtil.nextTick(function() {
+            // When the current `updateIsOpen()` animation finishes
+            promise.then(function(result) {
 
-        $mdUtil.nextTick(function() {
+              if ( !scope.isOpen ) {
+                // reset focus to originating element (if available) upon close
+                triggeringElement && triggeringElement.focus();
+                triggeringElement = null;
+              }
 
-          // When the current `updateIsOpen()` animation finishes
-          promise.then(function(result) {
-
-            if ( !scope.isOpen ) {
-              // reset focus to originating element (if available) upon close
-              triggeringElement && triggeringElement.focus();
-              triggeringElement = null;
-            }
-
-            deferred.resolve(result);
+              resolve(result);
+            });
           });
 
         });
 
-        return deferred.promise;
       }
     }
 
@@ -388,8 +384,7 @@ function SidenavDirective($mdMedia, $mdUtil, $mdConstant, $mdTheming, $animate, 
  */
 function SidenavController($scope, $element, $attrs, $mdComponentRegistry, $q) {
 
-  var self = this,
-      focusElement;
+  var self = this;
 
   // Use Default internal method until overridden by directive postLink
 
@@ -401,13 +396,6 @@ function SidenavController($scope, $element, $attrs, $mdComponentRegistry, $q) {
   self.open   = function() { return self.$toggleOpen( true );  };
   self.close  = function() { return self.$toggleOpen( false ); };
   self.toggle = function() { return self.$toggleOpen( !$scope.isOpen );  };
-  self.focusElement = function(el) {
-    if ( angular.isDefined(el) ) {
-      focusElement = el;
-    }
-    return focusElement;
-  };
-
   self.$toggleOpen = function(value) { return $q.when($scope.isOpen = value); };
 
   self.destroy = $mdComponentRegistry.register(self, $attrs.mdComponentId);
