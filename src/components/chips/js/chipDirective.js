@@ -33,7 +33,9 @@ var DELETE_HINT_TEMPLATE = '\
  * @param $mdInkRipple
  * @ngInject
  */
-function MdChip($mdTheming) {
+function MdChip($mdTheming, $mdUtil) {
+  var hintTemplate = $mdUtil.processTemplate(DELETE_HINT_TEMPLATE);
+
   return {
     restrict: 'E',
     require: '^?mdChips',
@@ -41,7 +43,9 @@ function MdChip($mdTheming) {
   };
 
   function compile(element, attr) {
-    element.append(DELETE_HINT_TEMPLATE);
+    // Append the delete template
+    element.append($mdUtil.processTemplate(hintTemplate));
+
     return function postLink(scope, element, attr, ctrl) {
       element.addClass('md-chip');
       $mdTheming(element);

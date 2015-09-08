@@ -31,13 +31,17 @@ angular
  * </hljs>
  */
 
-function MdHighlight () {
+function MdHighlight ($interpolate, $parse) {
   return {
-    terminal:   true,
-    scope:      false,
+    terminal: true,
     controller: 'MdHighlightCtrl',
-    link:       function (scope, element, attr, ctrl) {
-      ctrl.init(attr.mdHighlightText);
+    compile: function mdHighlightCompile(tElement, tAttr) {
+      var termExpr = $parse(tAttr.mdHighlightText);
+      var unsafeTextExpr = $interpolate(tElement.html());
+
+      return function mdHighlightLink(scope, element, attr, ctrl) {
+        ctrl.init(termExpr, unsafeTextExpr);
+      };
     }
   };
 }

@@ -47,6 +47,9 @@ function MdChipsCtrl ($scope, $mdConstant, $log, $element, $timeout) {
   /** @type {number} */
   this.selectedChip = -1;
 
+  /** @type {boolean} */
+  this.hasAutocomplete = false;
+
 
   /**
    * Hidden hint text for how to delete a chip. Used to give context to screen readers.
@@ -67,11 +70,18 @@ function MdChipsCtrl ($scope, $mdConstant, $log, $element, $timeout) {
   this.chipBuffer = '';
 
   /**
-   * Whether to use the mdOnAppend expression to transform the chip buffer
+   * Whether to use the onAppend expression to transform the chip buffer
    * before appending it to the list.
    * @type {boolean}
    */
-  this.useMdOnAppend = false;
+  this.useOnAppend = false;
+
+  /**
+   * Whether to use the onSelect expression to notify the component's user
+   * after selecting a chip from the list.
+   * @type {boolean}
+   */
+  this.useOnSelect = false;
 }
 
 /**
@@ -82,15 +92,17 @@ function MdChipsCtrl ($scope, $mdConstant, $log, $element, $timeout) {
  */
 MdChipsCtrl.prototype.inputKeydown = function(event) {
   var chipBuffer = this.getChipBuffer();
+
   switch (event.keyCode) {
     case this.$mdConstant.KEY_CODE.ENTER:
-      if (this.$scope.requireMatch || !chipBuffer) break;
+      if ((this.hasAutocomplete && this.requireMatch) || !chipBuffer) break;
       event.preventDefault();
       this.appendChip(chipBuffer);
       this.resetChipBuffer();
       break;
     case this.$mdConstant.KEY_CODE.BACKSPACE:
       if (chipBuffer) break;
+      event.preventDefault();
       event.stopPropagation();
       if (this.items.length) this.selectAndFocusChipSafe(this.items.length - 1);
       break;
@@ -181,22 +193,44 @@ MdChipsCtrl.prototype.getAdjacentChipIndex = function(index) {
  * @param newChip
  */
 MdChipsCtrl.prototype.appendChip = function(newChip) {
-  if (this.items.indexOf(newChip) + 1) return;
-  if (this.useMdOnAppend && this.mdOnAppend) {
-    newChip = this.mdOnAppend({'$chip': newChip});
+  if (this.useOnAppend && this.onAppend) {
+    newChip = this.onAppend({'$chip': newChip});
   }
+  if (this.items.indexOf(newChip) + 1) return;
   this.items.push(newChip);
 };
 
 /**
  * Sets whether to use the md-on-append expression. This expression is
  * bound to scope and controller in {@code MdChipsDirective} as
- * {@code mdOnAppend}. Due to the nature of directive scope bindings, the
+ * {@code onAppend}. Due to the nature of directive scope bindings, the
  * controller cannot know on its own/from the scope whether an expression was
  * actually provided.
  */
-MdChipsCtrl.prototype.useMdOnAppendExpression = function() {
-  this.useMdOnAppend = true;
+MdChipsCtrl.prototype.useOnAppendExpression = function() {
+  this.useOnAppend = true;
+};
+
+/**
+ * Sets whether to use the md-on-remove expression. This expression is
+ * bound to scope and controller in {@code MdChipsDirective} as
+ * {@code onRemove}. Due to the nature of directive scope bindings, the
+ * controller cannot know on its own/from the scope whether an expression was
+ * actually provided.
+ */
+MdChipsCtrl.prototype.useOnRemoveExpression = function() {
+  this.useOnRemove = true;
+};
+
+/*
+ * Sets whether to use the md-on-select expression. This expression is
+ * bound to scope and controller in {@code MdChipsDirective} as
+ * {@code onSelect}. Due to the nature of directive scope bindings, the
+ * controller cannot know on its own/from the scope whether an expression was
+ * actually provided.
+ */
+MdChipsCtrl.prototype.useOnSelectExpression = function() {
+  this.useOnSelect = true;
 };
 
 /**
@@ -234,7 +268,11 @@ MdChipsCtrl.prototype.resetChipBuffer = function() {
  * @param index
  */
 MdChipsCtrl.prototype.removeChip = function(index) {
-  this.items.splice(index, 1);
+  var removed = this.items.splice(index, 1);
+
+  if (removed && removed.length && this.useOnRemove && this.onRemove) {
+    this.onRemove({ '$chip': removed[0], '$index': index });
+  }
 };
 
 MdChipsCtrl.prototype.removeChipAndFocusInput = function (index) {
@@ -265,6 +303,11 @@ MdChipsCtrl.prototype.selectAndFocusChipSafe = function(index) {
 MdChipsCtrl.prototype.selectChip = function(index) {
   if (index >= -1 && index <= this.items.length) {
     this.selectedChip = index;
+
+    // Fire the onSelect if provided
+    if (this.useOnSelect && this.onSelect) {
+      this.onSelect({'$chip': this.items[this.selectedChip] });
+    }
   } else {
     this.$log.warn('Selected Chip index out of bounds; ignoring.');
   }
@@ -332,18 +375,24 @@ MdChipsCtrl.prototype.configureUserInput = function(inputElement) {
     this.userInputNgModelCtrl = ngModelCtrl;
   }
 
-  // Bind to keydown and focus events of input
   var scope = this.$scope;
   var ctrl = this;
+
+  // Run all of the events using evalAsync because a focus may fire a blur in the same digest loop
+  var scopeApplyFn = function(event, fn) {
+    scope.$evalAsync(angular.bind(ctrl, fn, event));
+  };
+
+  // Bind to keydown and focus events of input
   inputElement
       .attr({ tabindex: 0 })
-      .on('keydown', function(event) { scope.$apply( angular.bind(ctrl, function() { ctrl.inputKeydown(event); })) })
-      .on('focus', angular.bind(ctrl, ctrl.onInputFocus))
-      .on('blur', angular.bind(ctrl, ctrl.onInputBlur));
+      .on('keydown', function(event) { scopeApplyFn(event, ctrl.inputKeydown) })
+      .on('focus', function(event) { scopeApplyFn(event, ctrl.onInputFocus) })
+      .on('blur', function(event) { scopeApplyFn(event, ctrl.onInputBlur) })
 };
 
 MdChipsCtrl.prototype.configureAutocomplete = function(ctrl) {
-
+  this.hasAutocomplete = true;
   ctrl.registerSelectedItemWatcher(angular.bind(this, function (item) {
     if (item) {
       this.appendChip(item);

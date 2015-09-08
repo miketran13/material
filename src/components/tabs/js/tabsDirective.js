@@ -88,13 +88,13 @@ angular
     .module('material.components.tabs')
     .directive('mdTabs', MdTabs);
 
-function MdTabs ($mdTheming, $mdUtil, $compile) {
+function MdTabs () {
   return {
-    scope: {
-      selectedIndex: '=?mdSelected',
+    scope:            {
+      selectedIndex: '=?mdSelected'
     },
-    template: function (element, attr) {
-      attr["$mdTabsTemplate"] = element.html();
+    template:         function (element, attr) {
+      attr[ "$mdTabsTemplate" ] = element.html();
       return '\
         <md-tabs-wrapper>\
           <md-tab-data></md-tab-data>\
@@ -149,7 +149,7 @@ function MdTabs ($mdTheming, $mdUtil, $compile) {
                   ng-disabled="tab.scope.disabled"\
                   md-swipe-left="$mdTabsCtrl.nextPage()"\
                   md-swipe-right="$mdTabsCtrl.previousPage()"\
-                  md-template="::tab.label"\
+                  md-tabs-template="::tab.label"\
                   md-scope="::tab.parent"></md-tab-item>\
               <md-ink-bar></md-ink-bar>\
             </md-pagination-wrapper>\
@@ -165,12 +165,12 @@ function MdTabs ($mdTheming, $mdUtil, $compile) {
                   ng-focus="$mdTabsCtrl.hasFocus = true"\
                   ng-blur="$mdTabsCtrl.hasFocus = false"\
                   ng-repeat="tab in $mdTabsCtrl.tabs"\
-                  md-template="::tab.label"\
+                  md-tabs-template="::tab.label"\
                   md-scope="::tab.parent"></md-dummy-tab>\
             </div>\
           </md-tabs-canvas>\
         </md-tabs-wrapper>\
-        <md-tabs-content-wrapper ng-show="$mdTabsCtrl.hasContent">\
+        <md-tabs-content-wrapper ng-show="$mdTabsCtrl.hasContent && $mdTabsCtrl.selectedIndex >= 0">\
           <md-tab-content\
               id="tab-content-{{::tab.id}}"\
               role="tabpanel"\
@@ -179,7 +179,6 @@ function MdTabs ($mdTheming, $mdUtil, $compile) {
               md-swipe-right="$mdTabsCtrl.swipeContent && $mdTabsCtrl.incrementIndex(-1)"\
               ng-if="$mdTabsCtrl.hasContent"\
               ng-repeat="(index, tab) in $mdTabsCtrl.tabs"\
-              md-connected-if="tab.isActive()"\
               ng-class="{\
                 \'md-no-transition\': $mdTabsCtrl.lastSelectedIndex == null,\
                 \'md-active\':        tab.isActive(),\
@@ -188,15 +187,16 @@ function MdTabs ($mdTheming, $mdUtil, $compile) {
                 \'md-no-scroll\':     $mdTabsCtrl.dynamicHeight\
               }">\
             <div\
-                md-template="::tab.template"\
+                md-tabs-template="::tab.template"\
+                md-connected-if="tab.isActive()"\
                 md-scope="::tab.parent"\
-                ng-if="tab.shouldRender()"></div>\
+                ng-if="$mdTabsCtrl.enableDisconnect || tab.shouldRender()"></div>\
           </md-tab-content>\
         </md-tabs-content-wrapper>\
       ';
     },
-    controller: 'MdTabsController',
-    controllerAs: '$mdTabsCtrl',
+    controller:       'MdTabsController',
+    controllerAs:     '$mdTabsCtrl',
     bindToController: true
   };
 }

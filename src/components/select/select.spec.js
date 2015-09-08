@@ -1,16 +1,20 @@
 describe('<md-select>', function() {
+  var attachedElements = [];
+
+  afterEach(function() {
+    attachedElements.forEach(function(element) {
+      element.remove();
+    });
+    attachedElements = [];
+  });
 
   beforeEach(module('material.components.input'));
   beforeEach(module('material.components.select'));
 
-  beforeEach(inject(function($mdUtil, $$q) {
-    $mdUtil.dom.animator.waitTransitionEnd = function() {
-      return $$q.when(true);
-    };
-  }));
 
   function setupSelect(attrs, options, bNoLabel) {
     var el;
+
     inject(function($compile, $rootScope) {
       var src = '<md-input-container>';
       if (!bNoLabel) {
@@ -20,8 +24,9 @@ describe('<md-select>', function() {
       var template = angular.element(src);
       el = $compile(template)($rootScope);
       $rootScope.$digest();
-      $rootScope.$digest();
     });
+    attachedElements.push(el);
+
     return el;
   }
 
@@ -34,6 +39,8 @@ describe('<md-select>', function() {
       el = $compile(fullTpl)($rootScope);
       $rootScope.$apply();
     });
+    attachedElements.push(el);
+
     return el;
   }
 
@@ -63,9 +70,6 @@ describe('<md-select>', function() {
     try {
       el.triggerHandler('click');
       waitForSelectOpen();
-      inject(function($timeout) {
-        $timeout.flush();
-      });
     } catch(e) { }
   }
 
@@ -79,19 +83,31 @@ describe('<md-select>', function() {
 
   function waitForSelectOpen() {
     try {
-      inject(function($rootScope, $animate) {
+      inject(function($rootScope, $timeout, $$rAF) {
           $rootScope.$digest();
-          $animate.triggerCallbacks();
+
+            $$rAF.flush();  // flush $animate.enter(backdrop)
+          $timeout.flush(); // flush response
+            $$rAF.flush();  // flush $animateCss
+          $timeout.flush(); // flush response
+
+          $rootScope.$digest();
       });
     } catch(e) { }
   }
 
   function waitForSelectClose() {
     try {
-      inject(function($rootScope, $animate ) {
-        $rootScope.$apply();
-        $animate.triggerCallbacks();
+      inject(function($rootScope, $timeout, $$rAF) {
+          $rootScope.$digest();
 
+          $$rAF.flush();    // flush $animate.leave(backdrop)
+          $timeout.flush(); // flush response
+
+          $rootScope.$digest();
+
+          $$rAF.flush();
+          $rootScope.$digest();
       });
     } catch(e) { }
   }
@@ -113,9 +129,10 @@ describe('<md-select>', function() {
     expect(select.attr('aria-disabled')).toBe('true');
   }));
 
-  it('supports passing classes to the container', inject(function($document) {
+  it('supports passing classes to the container', inject(function($document, $timeout) {
     var select = setupSelect('ng-model="val", md-container-class="test"').find('md-select');
     openSelect(select);
+
     var container = $document[0].querySelector('.md-select-menu-container');
     expect(container).toBeTruthy();
     expect(container.classList.contains('test')).toBe(true);
@@ -134,7 +151,6 @@ describe('<md-select>', function() {
       type: 'click',
       target: angular.element($document.find('md-option')[0])
     });
-
     waitForSelectClose();
 
     expect(called).toBe(true);
@@ -154,6 +170,15 @@ describe('<md-select>', function() {
     //expect($document[0].activeElement).toBe(select[0]);
 
     select.remove();
+  }));
+
+  it('should not convert numbers to strings', inject(function($compile, $rootScope) {
+    $rootScope.value = 1;
+    $compile('<md-select ng-model="value">' +
+      '<md-option ng-repeat="value in [1, 2, 3]" value="{{value}}">{{value}}</md-option>' +
+      '</md-select>')($rootScope);
+    $rootScope.$digest();
+    expect($rootScope.value).toBe(1);
   }));
 
   describe('input container', function() {
@@ -460,6 +485,15 @@ describe('<md-select>', function() {
         expect($rootScope.model).toEqual([]);
       }));
 
+      it('renders nothing if undefined is set', inject(function($rootScope) {
+        $rootScope.model = [1, 2];
+        var el = setupMultiple('ng-model="$root.model"', [1,2,3,4]);
+        expect(selectedOptions(el).length).toBe(2);
+        $rootScope.$apply('model = undefined');
+        $rootScope.$digest();
+        expect(selectedOptions(el).length).toBe(0);
+      }));
+
       it('adding a valid value to the model selects its option', inject(function($rootScope) {
         $rootScope.model = [];
         var el = setupMultiple('ng-model="$root.model"', [1,2,3,4]);
@@ -705,6 +739,8 @@ describe('<md-select>', function() {
     }));
 
     it('sets up the aria-expanded attribute', inject(function($document) {
+      disableAnimations();
+
       expect(el.attr('aria-expanded')).toBe('false');
       openSelect(el);
       expect(el.attr('aria-expanded')).toBe('true');
@@ -712,6 +748,7 @@ describe('<md-select>', function() {
       var selectMenu = $document.find('md-select-menu');
       pressKey(selectMenu, 27);
       waitForSelectClose();
+
       expect(el.attr('aria-expanded')).toBe('false');
     }));
     it('sets up the aria-multiselectable attribute', inject(function($document, $rootScope) {
@@ -782,6 +819,8 @@ describe('<md-select>', function() {
 
     describe('md-select-menu', function() {
       it('can be closed with escape', inject(function($document, $rootScope, $animate) {
+        disableAnimations();
+
         var el = setupSelect('ng-model="someVal"', [1, 2, 3]).find('md-select');
         openSelect(el);
         var selectMenu = angular.element($document.find('md-select-menu'));

@@ -56,8 +56,11 @@ angular
  *     `md-input-container`
  * @param {string=} md-input-name The name attribute given to the input element to be used with
  *     FormController
+ * @param {string=} md-input-id An ID to be added to the input element
  * @param {number=} md-input-minlength The minimum length for the input's value for validation
  * @param {number=} md-input-maxlength The maximum length for the input's value for validation
+ * @param {boolean=} md-select-on-match When set, autocomplete will automatically select exact
+ *     the item if the search text is an exact match
  *
  * @usage
  * ###Basic Example
@@ -128,6 +131,7 @@ function MdAutocomplete () {
       itemText:       '&mdItemText',
       placeholder:    '@placeholder',
       noCache:        '=?mdNoCache',
+      selectOnMatch:  '=?mdSelectOnMatch',
       itemChange:     '&?mdSelectedItemChange',
       textChange:     '&?mdSearchTextChange',
       minLength:      '=?mdMinLength',
@@ -135,7 +139,8 @@ function MdAutocomplete () {
       autofocus:      '=?mdAutofocus',
       floatingLabel:  '@?mdFloatingLabel',
       autoselect:     '=?mdAutoselect',
-      menuClass:      '@?mdMenuClass'
+      menuClass:      '@?mdMenuClass',
+      inputId:        '@?mdInputId'
     },
     template:     function (element, attr) {
       var noItemsTemplate = getNoItemsTemplate(),
@@ -150,21 +155,26 @@ function MdAutocomplete () {
           <md-progress-linear\
               ng-if="$mdAutocompleteCtrl.loading && !$mdAutocompleteCtrl.hidden"\
               md-mode="indeterminate"></md-progress-linear>\
-          <ul role="presentation"\
-              class="md-autocomplete-suggestions md-whiteframe-z1 {{menuClass || \'\'}}"\
-              id="ul-{{$mdAutocompleteCtrl.id}}"\
-              ng-hide="$mdAutocompleteCtrl.hidden"\
-              ng-mouseenter="$mdAutocompleteCtrl.listEnter()"\
-              ng-mouseleave="$mdAutocompleteCtrl.listLeave()"\
-              ng-mouseup="$mdAutocompleteCtrl.mouseUp()">\
-            <li ng-repeat="(index, item) in $mdAutocompleteCtrl.matches"\
-                ng-class="{ selected: index === $mdAutocompleteCtrl.index }"\
-                ng-click="$mdAutocompleteCtrl.select(index)"\
-                md-autocomplete-list-item="$mdAutocompleteCtrl.itemName">\
-                ' + itemTemplate + '\
-            </li>\
-            ' + noItemsTemplate + '\
-          </ul>\
+          <md-virtual-repeat-container\
+              md-auto-shrink\
+              md-auto-shrink-min="1"\
+              ng-hide="$mdAutocompleteCtrl.hidden && !$mdAutocompleteCtrl.notFoundVisible()"\
+              class="md-autocomplete-suggestions-container md-whiteframe-z1"\
+              role="presentation">\
+            <ul class="md-autocomplete-suggestions"\
+                ng-class="::menuClass"\
+                id="ul-{{$mdAutocompleteCtrl.id}}"\
+                ng-mouseenter="$mdAutocompleteCtrl.listEnter()"\
+                ng-mouseleave="$mdAutocompleteCtrl.listLeave()"\
+                ng-mouseup="$mdAutocompleteCtrl.mouseUp()">\
+              <li md-virtual-repeat="item in $mdAutocompleteCtrl.matches"\
+                  ng-class="{ selected: $index === $mdAutocompleteCtrl.index }"\
+                  ng-click="$mdAutocompleteCtrl.select($index)"\
+                  md-extra-name="$mdAutocompleteCtrl.itemName">\
+                  ' + itemTemplate + '\
+                  </li>' + noItemsTemplate + '\
+            </ul>\
+          </md-virtual-repeat-container>\
         </md-autocomplete-wrap>\
         <aria-status\
             class="md-visually-hidden"\
@@ -173,21 +183,19 @@ function MdAutocomplete () {
           <p ng-repeat="message in $mdAutocompleteCtrl.messages track by $index" ng-if="message">{{message}}</p>\
         </aria-status>';
 
-      function getItemTemplate () {
-        var templateTag = element.find('md-item-template').remove(),
-            html        = templateTag.length ? templateTag.html() : element.html();
+      function getItemTemplate() {
+        var templateTag = element.find('md-item-template').detach(),
+            html = templateTag.length ? templateTag.html() : element.html();
         if (!templateTag.length) element.empty();
         return html;
       }
 
-      function getNoItemsTemplate () {
-        var templateTag = element.find('md-not-found').remove(),
-            template    = templateTag.length ? templateTag.html() : '';
+      function getNoItemsTemplate() {
+        var templateTag = element.find('md-not-found').detach(),
+            template = templateTag.length ? templateTag.html() : '';
         return template
-            ? '<li ng-if="!$mdAutocompleteCtrl.matches.length && !$mdAutocompleteCtrl.loading\
-                       && !$mdAutocompleteCtrl.hidden"\
-                   ng-hide="$mdAutocompleteCtrl.hidden"\
-                   md-autocomplete-parent-scope>' + template + '</li>'
+            ? '<li ng-if="$mdAutocompleteCtrl.notFoundVisible()"\
+                         md-autocomplete-parent-scope>' + template + '</li>'
             : '';
 
       }
@@ -198,7 +206,7 @@ function MdAutocomplete () {
             <md-input-container flex ng-if="floatingLabel">\
               <label>{{floatingLabel}}</label>\
               <input type="search"\
-                  id="fl-input-{{$mdAutocompleteCtrl.id}}"\
+                  id="{{ inputId || \'fl-input-\' + $mdAutocompleteCtrl.id }}"\
                   name="{{inputName}}"\
                   autocomplete="off"\
                   ng-required="$mdAutocompleteCtrl.isRequired"\
@@ -220,7 +228,7 @@ function MdAutocomplete () {
         } else {
           return '\
             <input flex type="search"\
-                id="input-{{$mdAutocompleteCtrl.id}}"\
+                id="{{ inputId || \'input-\' + $mdAutocompleteCtrl.id }}"\
                 name="{{inputName}}"\
                 ng-if="!floatingLabel"\
                 autocomplete="off"\

@@ -1,5 +1,11 @@
+$button-fab-width: rem(5.600) !default;
+$icon-button-margin: rem(0.600) !default;
+
 md-fab-toolbar {
   $icon-delay: 200ms;
+
+  // Include the top/left/bottom/right fab positions
+  @include fab-all-positions();
 
   display: block;
 
@@ -11,8 +17,8 @@ md-fab-toolbar {
     position: relative;
     overflow: hidden;
 
-    // Account for the size of the trigger (5.6rem) plus it's margin/shadow (0.6rem * 2)
-    height: 6.8rem;
+    // Account for the size of the trigger plus it's margin/shadow
+    height: $button-fab-width + ($icon-button-margin * 2);
   }
 
   md-fab-trigger {
@@ -45,16 +51,6 @@ md-fab-toolbar {
 
   &.md-left {
     md-fab-trigger {
-      left: 0;
-    }
-
-    .md-toolbar-tools {
-      flex-direction: row;
-    }
-  }
-
-  &.md-right {
-    md-fab-trigger {
       right: 0;
     }
 
@@ -62,11 +58,11 @@ md-fab-toolbar {
       flex-direction: row-reverse;
 
       > .md-button:first-child {
-        margin-left: 0.6rem;
+        margin-right: 0.6rem;
       }
 
       > .md-button:first-child {
-        margin-right: -0.8rem;
+        margin-left: -0.8rem;
       }
 
 
@@ -77,8 +73,19 @@ md-fab-toolbar {
     }
   }
 
+  &.md-right {
+    md-fab-trigger {
+      left: 0;
+    }
+
+    .md-toolbar-tools {
+      flex-direction: row;
+    }
+  }
+
   md-toolbar {
     background-color: transparent !important;
+    pointer-events: none;
     z-index: $z-index-fab + 3;
 
     .md-toolbar-tools {
